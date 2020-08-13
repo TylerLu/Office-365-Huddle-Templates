@@ -18,6 +18,7 @@ namespace Huddle.BotWebApp.Dialogs
     {
         private const string CancelMsgText = "Cancelled.";
 
+        protected IConfiguration Configuration;
         protected readonly string ConnectionName;
         protected readonly UserState UserState;
         protected readonly IStatePropertyAccessor<UserProfile> UserProfileAccessor;
@@ -25,6 +26,7 @@ namespace Huddle.BotWebApp.Dialogs
         public HuddleDialog(string id, IConfiguration configuration, UserState userState)
             : base(id)
         {
+            Configuration = configuration;
             ConnectionName = configuration["ConnectionName"];
             UserState = userState;
             UserProfileAccessor = userState.CreateProperty<UserProfile>("UserProfile");
@@ -33,8 +35,7 @@ namespace Huddle.BotWebApp.Dialogs
             {
                 ConnectionName = ConnectionName,
                 Text = "Please Sign In",
-                Title = "Sign In",
-                Timeout = 1000 * 60 * 5 // 5 minutes
+                Title = "Sign In"
             };
             AddDialog(new OAuthPrompt(nameof(OAuthPrompt), oauthPromptSettings));
         }
@@ -57,13 +58,15 @@ namespace Huddle.BotWebApp.Dialogs
                     case "quit":
                         var cancelMessage = MessageFactory.Text(CancelMsgText, CancelMsgText, InputHints.IgnoringInput);
                         await innerDc.Context.SendActivityAsync(cancelMessage, cancellationToken);
-                        return await innerDc.CancelAllDialogsAsync(cancellationToken);
+                        await innerDc.CancelAllDialogsAsync(cancellationToken);
+                        return await innerDc.BeginDialogAsync(InitialDialogId, cancellationToken: cancellationToken);
                     case "logout":
                         // The bot adapter encapsulates the authentication processes.
                         var botAdapter = (BotFrameworkAdapter)innerDc.Context.Adapter;
                         await botAdapter.SignOutUserAsync(innerDc.Context, ConnectionName, null, cancellationToken);
                         await innerDc.Context.SendActivityAsync(MessageFactory.Text("You have been signed out."), cancellationToken);
-                        return await innerDc.CancelAllDialogsAsync(cancellationToken);
+                        await innerDc.CancelAllDialogsAsync(cancellationToken);
+                        return await innerDc.BeginDialogAsync(InitialDialogId, cancellationToken: cancellationToken);
                 }
             }
             return null;
